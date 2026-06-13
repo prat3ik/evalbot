@@ -38,3 +38,6 @@ client/.pnpm-debug.log*
 
 # Runtime SQLite db
 server/*.db
+
+# Internal / private notes (growth plan, etc.) — never publish
+marketing/
