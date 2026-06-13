@@ -1,7 +1,7 @@
 """Standalone tests for the chatbot connector core.
 
 Exercises template rendering, JSONPath extraction, the provider presets, and a
-live render -> HTTP -> extract round-trip against a mock ChatGPT-shaped server.
+live render -> HTTP -> extract round-trip against a mock OpenAI-shaped server.
 
 Loads ``app/chatbot_client.py`` directly (it imports only the stdlib at module
 load), so this runs with the system Python without installing the server's
@@ -69,7 +69,7 @@ def test_jsonpath_and_token_extraction():
     assert cc.coerce_int(cc.jsonpath_get(data, p["tokens_total_path"])) == 4
 
 
-class _MockChatGPT(BaseHTTPRequestHandler):
+class _MockOpenAI(BaseHTTPRequestHandler):
     """Minimal OpenAI Chat Completions look-alike that echoes the last turn."""
 
     def log_message(self, *_a):  # keep test output clean
@@ -93,8 +93,8 @@ class _MockChatGPT(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
 
-def test_live_round_trip_against_mock_chatgpt():
-    server = HTTPServer(("127.0.0.1", 0), _MockChatGPT)
+def test_live_round_trip_against_mock_openai():
+    server = HTTPServer(("127.0.0.1", 0), _MockOpenAI)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

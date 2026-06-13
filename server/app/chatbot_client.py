@@ -211,7 +211,7 @@ async def call_chatbot(
 PRESETS: list[dict[str, Any]] = [
     {
         "id": "openai",
-        "label": "OpenAI (ChatGPT)",
+        "label": "OpenAI",
         "description": (
             "Chat Completions API. Replace <OPENAI_API_KEY> in the headers. "
             "Multi-turn rows replay through {{messages}}."
