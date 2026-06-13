@@ -14,7 +14,7 @@ deterministic ML/NLP metrics with a multi-provider LLM judge, so you know exactl
 [![Local-first](https://img.shields.io/badge/Local--first-no%20cloud%20required-success)](#-quickstart)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#-contributing)
 
-[Features](#-features) • [How it works](#-how-it-works) • [Quickstart](#-quickstart) • [Architecture](#-architecture) • [Providers](#-ai-judge-providers) • [License](#-license)
+[Features](#-features) • [How it works](#-how-it-works) • [Quickstart](#-quickstart) • [Docs](docs/) • [Architecture](#-architecture) • [Providers](#-ai-judge-providers) • [License](#-license)
 
 </div>
 
@@ -37,6 +37,16 @@ For each chatbot under test you create a **Bot Project** and give it two things:
 Then you paste a `(question, chatbot answer)` pair. EvalBot generates the *correct* answer from your docs + guidelines, scores the bot's answer against it from two independent angles, and tells you precisely where it fell short — including any **guideline violations**, with the offending sentence quoted.
 
 It runs entirely on your machine. No Docker, no account, no data leaving your laptop — and a fully offline mode via Ollama.
+
+---
+
+## 📖 Documentation
+
+Short and to the point — read in a couple of minutes:
+
+- **[How it works](docs/how-it-works.md)** — the scoring pipeline + user workflow, with flowcharts.
+- **[Usage guide](docs/usage.md)** — evaluate a bot, step by step.
+- **[Glossary](docs/glossary.md)** — every term in plain English.
 
 ---
 
