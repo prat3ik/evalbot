@@ -1,0 +1,581 @@
+================================================================================
+EVALBOT — 15 MINUTE LIVE DEMO SCRIPT (WORD-FOR-WORD)
+================================================================================
+
+Audience: internal / client stakeholders, dropped into the middle of a meeting.
+Format:   ~3 min framing  +  ~10 min live product demo  +  ~2 min close.
+
+Everything in quotes is what you SAY. Everything in [brackets] is what you DO
+on screen. Italicised stage directions explain *why* a line is there so you
+can flex without losing the thread.
+
+================================================================================
+RESEARCH SUMMARY (read once before the demo — do NOT recite this)
+================================================================================
+
+State of the industry, May 2026:
+
+  - The LLM-eval space has converged on three OSS frameworks:
+      * DeepEval (Confident AI)  — pytest-style, 50+ metrics, code-first
+      * Ragas                    — RAG-specific (faithfulness, context recall)
+      * Promptfoo                — CLI / YAML, great for prompt + model A/B
+    Source: Inference.net, Braintrust, genai.qa comparison guides (2026)
+
+  - The platforms layered on top are:
+      * Braintrust, LangSmith, Arize, Langfuse, Confident AI
+    They add dashboards, dataset versioning, human review, online evals.
+
+  - Industry consensus (2026): teams use TWO tools — one OSS framework for
+    CI gating + one platform for review and monitoring. (Braintrust, ZenML,
+    Confident AI all say this in their own words.)
+
+  - The accepted core metrics for a RAG chatbot are:
+      * Faithfulness / Groundedness   — answer supported by retrieved context
+      * Answer Relevancy              — answer addresses the question
+      * Contextual Precision / Recall — retriever brought back the right docs
+      * Hallucination                 — claims unsupported by source
+      * Toxicity / Bias / PII         — safety guardrails
+    Source: Ragas, DeepEval, Patronus AI, Comet docs
+
+  - Known DeepEval gaps in enterprise use:
+      * No UI, no collaboration — QA / PM can't drive it
+      * Heavy LLM-judge cost and latency at scale
+      * No first-class place to put client-specific guidelines or rules
+      * Multi-turn conversation eval is awkward
+    Source: ZenML "DeepEval alternatives", Confident AI's own enterprise page
+
+This is the soil we plant our pitch in. We are NOT trashing DeepEval. We're
+saying: it's good, we used it, and we needed something tighter for our flow.
+
+
+================================================================================
+PART 1 — FRAMING  (≈ 3 MIN, SPOKEN, NO SCREEN)
+================================================================================
+
+*Stand up, close the laptop lid halfway if you can. Eye contact.*
+
+"Before I show you the tool, I want to spend two minutes on how the industry
+ actually tests chatbots today, because it's the reason we built this."
+
+"Broadly there are three things people do."
+
+"One — manual QA. Someone from the business pastes the bot's answers into a
+ spreadsheet and gives them a thumbs up or down. This is still how most
+ companies do it. It doesn't scale, two reviewers disagree, and there's no
+ audit trail when a client asks 'why did you sign off on this response'."
+
+"Two — open-source evaluation frameworks. The big three right now are
+ DeepEval, Ragas, and Promptfoo. DeepEval is pytest for LLMs, fifty-plus
+ built-in metrics. Ragas is laser-focused on RAG pipelines — faithfulness,
+ context recall, that family of metrics. Promptfoo is the one you reach for
+ when you want to A/B two prompts or two models. These are all good. They
+ are all code-first."
+
+"Three — the platforms on top: Braintrust, LangSmith, Arize, Langfuse,
+ Confident AI. These add the UI, the dataset versioning, the dashboards.
+ Most serious teams in 2026 are running one framework plus one platform."
+
+*Pause — call out the observability category specifically, because someone
+ in the room has heard of these and will ask.*
+
+"Two of those names deserve a second mention because they're a different
+ category — observability. Langfuse and Arize Phoenix are the open-source
+ leaders here. They're not really evaluation tools, they're production
+ tracing tools. Every conversation the bot has in production gets traced,
+ every prompt, every retrieval, every token. Then evaluators run on top of
+ those traces, either online — scored live — or offline on samples."
+
+"Langfuse is OpenTelemetry-native, fully open-source, self-hostable on
+ Postgres and ClickHouse. It's the default pick when you want to own your
+ data. Arize Phoenix is the eval-rigor pick — drift detection, embedding
+ analysis, the ML-grade primitives Arize had before LLMs were a thing.
+ LangSmith is the LangChain-native option."
+
+"These tools are excellent for what they do — watching what the bot does
+ in production. They are NOT what we needed. They answer the question
+ 'what happened in production yesterday.' We needed to answer 'should we
+ ship this bot to the client tomorrow.' That's pre-release evaluation,
+ against the client's docs, with the client's rules. Different job."
+
+"Where they meet EvalBot is downstream — once a bot is live, the client
+ plugs Langfuse or Arize into their stack to watch it run, and pipes
+ flagged traces back into EvalBot as new test cases. They're complements,
+ not competitors."
+
+*Pause.*
+
+"We started with DeepEval. We're not here to bash it — it's a solid
+ framework and we still recommend it for engineering teams. But for our
+ flow, three things hurt."
+
+"First, it's code-first. Every new metric, every new rule a client gives us,
+ is a Python pull request. Our QA team had to wait on engineering for every
+ single change. That broke the flow."
+
+"Second, the judge has no idea what 'correct' means for our client. DeepEval
+ will tell you a bot's answer is faithful — but faithful to what? Out of the
+ box, it judges against its own world knowledge. For a domain chatbot —
+ banking, healthcare, internal HR — that's the wrong reference. We need the
+ judge grounded in the client's own documents, every time."
+
+"Third, there's no first-class place for the client's guidelines. Every
+ client gives us a rulebook — tone, escalation language, disclaimers,
+ things the bot must never say. In DeepEval those rules live in code as
+ custom metrics. They should live as plain English next to the bot."
+
+*Beat.*
+
+"So we built EvalBot. It's not a DeepEval replacement for the world. It's
+ our internal harness, designed around the way Alphabin actually tests bots
+ for clients. Three principles."
+
+"One — every score is grounded in the client's own knowledge base. The
+ judge doesn't get to invent the right answer. The right answer is
+ retrieved from the client's docs."
+
+"Two — guidelines live as markdown. QA writes them, the evaluator reads
+ them, the report quotes them. No code in the loop."
+
+"Three — hybrid scoring. We pair deterministic ML and NLP metrics with the
+ LLM judge. When a client asks us to defend a score, we can show both
+ numbers and explain when they agree and when they don't."
+
+*Pause — this is the question someone in the room is about to ask.*
+
+"Quick word on WHY we use an LLM as the judge in the first place, because
+ it's the obvious question. There are basically four ways to score a
+ chatbot response, and we use three of them."
+
+"Option one — human evaluation. SMEs read every response and grade it.
+ This is the gold standard. It's also slow, expensive, and inconsistent —
+ two reviewers disagree about thirty percent of the time on the same
+ response. We can't ship a client a bot by asking humans to read ten
+ thousand answers."
+
+"Option two — classic NLP metrics. BLEU, ROUGE, METEOR. These compare
+ word overlap with a reference answer. They were designed for machine
+ translation in 2002. For chatbots they're almost useless — if the bot
+ says 'we're open from nine to five' and the reference says 'business
+ hours are 9am to 5pm,' BLEU scores it low because the words don't match.
+ Same meaning, wrong score."
+
+"Option three — embedding-based metrics. BERTScore, semantic similarity.
+ Better than BLEU because they compare meaning, not words. We DO use
+ these — they're part of our deterministic ML score. But they can't tell
+ you WHY something is wrong. They give you a number, not a reason. A
+ client report that says 'the bot scored 0.71 on BERTScore' doesn't help
+ anyone."
+
+"Option four — LLM as a judge. You give another LLM the question, the
+ bot's answer, the reference, and the rules, and ask it to score and
+ explain. The data on this is now well-established: GPT-4 class judges
+ agree with human reviewers about eighty percent of the time, which is
+ roughly the level humans agree with each other. And critically, the
+ judge writes a sentence of justification next to every score. That
+ sentence is what goes into the client report."
+
+"So our stack is: embeddings and NLP for the deterministic floor, LLM
+ judge for reasoning and explanation, humans in the loop only for the
+ cases where the two disagree. That last part is the scatter plot I'll
+ show you in a few minutes."
+
+"That's why LLM-as-judge. Let me show you the tool."
+
+*Open the laptop. Switch to the browser. EvalBot project page is already
+ loaded.*
+
+
+================================================================================
+PART 2 — LIVE DEMO  (≈ 10 MIN)
+================================================================================
+
+──────────────────────────────────────────────────────────────────────────────
+STEP 1 — THE PROJECT  (≈ 60 SEC)
+──────────────────────────────────────────────────────────────────────────────
+
+[Screen: the project page for a pre-loaded demo bot. KB documents listed on
+ one side, guidelines markdown on the other.]
+
+"Each bot we test is a project. Two things go into it."
+
+"On the left, the knowledge base. These are the same documents the client's
+ bot is built on. PDF, Word, markdown, scraped web pages — whatever the
+ source is. EvalBot indexes them into a local vector store. Every score the
+ judge gives later is grounded against this corpus."
+
+"On the right, the guidelines file. Plain markdown. This one says things
+ like 'always include business hours when discussing availability,'
+ 'never disclose internal account IDs,' 'if the user mentions self-harm,
+ escalate immediately.' QA writes this directly. No code."
+
+"That's the setup. From here, every evaluation answers one question:
+ given THIS knowledge base and THESE rules, how did the bot do?"
+
+
+──────────────────────────────────────────────────────────────────────────────
+STEP 2 — A SINGLE EVALUATION  (≈ 3 MIN)
+──────────────────────────────────────────────────────────────────────────────
+
+[Click "New evaluation". Paste a pre-prepared question and a pre-prepared
+ bot response from your notes file.]
+
+"Here's a real question a user asked the bot, and here's the response the
+ bot gave. I'm going to evaluate it."
+
+[Click Run. While it runs, keep talking.]
+
+"Behind the scenes, three things are happening in parallel."
+
+"One — we run ML and NLP metrics. Semantic similarity using a local
+ embedding model, lexical overlap, readability, completeness against the
+ retrieved context. Deterministic. Same input, same score, every time.
+ No LLM cost. This is our floor."
+
+"Two — we retrieve the relevant chunks from the client's docs and ask the
+ LLM judge to write the answer the bot *should* have given. We call this
+ the reference answer. It's grounded — the judge isn't guessing, it's
+ reading the client's own documents."
+
+"Three — the judge scores the bot's answer against that reference, on five
+ dimensions: similarity, accuracy, completeness, relevance, readability.
+ And in parallel, it reads the guidelines markdown and flags any
+ violations."
+
+[Result appears on screen.]
+
+"OK — score is 6.8 out of 10. Let's read it."
+
+[Click into the score breakdown.]
+
+"ML score: 7.1. Judge score: 6.5. They mostly agree. When they disagree
+ sharply, that's a flag — usually means the bot wrote something fluent but
+ wrong, and the judge caught it."
+
+[Click the reference answer.]
+
+"Here's what the bot should have said, generated from these specific
+ chunks of the knowledge base — you can see the citations. This is the
+ thing DeepEval doesn't give us out of the box. The judge is grounded in
+ the client's world, not its own."
+
+[Click into the per-dimension breakdown.]
+
+"For each dimension, the judge gives a score AND a written explanation.
+ This explanation goes straight into the client report. We don't have to
+ invent it."
+
+[Click guideline findings.]
+
+"And here — the bot violated this rule from the guidelines file. The
+ system quotes the offending sentence and cites the rule. That's not
+ something a generic metric gives you. That's specific to this client."
+
+
+──────────────────────────────────────────────────────────────────────────────
+STEP 3 — PII AND SAFETY  (≈ 1 MIN)
+──────────────────────────────────────────────────────────────────────────────
+
+[Paste a second prepared bot response that contains a fake email or an SSN.]
+
+"Let me show you what happens when the bot leaks something it shouldn't."
+
+[Click Run.]
+
+[Red banner appears.]
+
+"PII detection runs on every response. Pattern-based, instant, zero LLM
+ cost. Emails, phone numbers, SSNs, credit cards. If you're a regulated
+ client — finance, healthcare — this is the first thing your security
+ team asks about. We catch it before the client does."
+
+
+──────────────────────────────────────────────────────────────────────────────
+STEP 4 — CUSTOM CHECK  (≈ 1 MIN)  ★ the moment for QA
+──────────────────────────────────────────────────────────────────────────────
+
+*This is the most important 60 seconds in the demo. Slow down.*
+
+[Click "Add custom check". Type the sentence in front of them.]
+
+"Watch this. I'm going to add a new rule, live, right now. No code, no
+ deploy."
+
+[Type: "The response must mention business hours whenever the user
+ asks about availability."]
+
+[Save. Re-run the evaluation against the same response.]
+
+"The custom check is in the next evaluation. The bot didn't mention
+ business hours, so it fails — and the judge tells me exactly why."
+
+"This is the moment that decided it for us. In DeepEval, that rule is a
+ Python class, a code review, a deploy. Here, QA writes the sentence and
+ it's live. When a client emails us at 5pm saying 'oh by the way the bot
+ should never recommend competitor products,' we add it during the call."
+
+
+──────────────────────────────────────────────────────────────────────────────
+STEP 5 — BATCH / TEST SUITE  (≈ 2 MIN)
+──────────────────────────────────────────────────────────────────────────────
+
+[Navigate to the test suite page. Show the seed question library.]
+
+"One evaluation is nice. The reason we built this is regression testing."
+
+"We ship with a seed library of about a hundred questions across four risk
+ categories — security, harmfulness, fact-check, hallucination. These are
+ the categories that scare clients."
+
+[Click Run suite. Heatmap starts populating.]
+
+"This is how we sign off a bot before release. We run the whole suite,
+ we get a heatmap. Green is fine. Yellow is review. Red is block-release."
+
+[Heatmap fills.]
+
+"Two red cells — both in the hallucination column. Let's look."
+
+[Click into one red cell.]
+
+"The bot invented a refund policy that isn't in the documents. Judge
+ caught it, quoted the bot's claim, cited the absence in the KB. That's
+ a deploy blocker."
+
+"Every time the client updates the KB or we tune the bot, we rerun this
+ suite. If a fix makes hallucination worse somewhere else, we see it
+ here, not in production."
+
+
+──────────────────────────────────────────────────────────────────────────────
+STEP 6 — ANALYTICS  (≈ 1 MIN)
+──────────────────────────────────────────────────────────────────────────────
+
+[Open the analytics dashboard.]
+
+"Last thing. This is what ships to the client."
+
+[Point to the ML-vs-AI scatter.]
+
+"Every dot is one evaluation. X-axis is the deterministic score, Y-axis is
+ the judge. Dots on the diagonal — agreement. Dots off the diagonal —
+ worth a human look. This single chart is how we triage which responses
+ need review."
+
+[Point to the dimension performance bars.]
+
+"Per-dimension performance over the whole run. We can tell a client:
+ 'your bot is great at relevance, weak on completeness, here's where to
+ invest.'"
+
+[Click CSV export.]
+
+"And it all exports. The client gets a CSV, a dashboard link, and every
+ number is traceable back to a specific document and a specific rule."
+
+
+================================================================================
+PART 3 — CLOSE  (≈ 1–2 MIN)
+================================================================================
+
+*Stop sharing screen. Eye contact again.*
+
+"That's the tool. Three things to take away."
+
+"One — every score is defensible. Grounded in the client's own knowledge
+ base, scored against the client's own rules. When a client pushes back,
+ we have receipts."
+
+"Two — QA owns the evaluation loop. Custom rules, guidelines, seed
+ questions — all driven from the UI. Engineers stay on the bot, not on
+ the eval harness."
+
+"Three — it's a real harness, not a slide. Hybrid ML plus LLM scoring,
+ batch regression, PII detection, multi-provider judge — Claude, Gemini,
+ GPT-4o, or local Ollama for clients who can't send data out."
+
+"On the roadmap — and these are in the repo as `improvement-deepeval.md`
+ and `improvement-braintrust.md` — dataset versioning, CI gates so a bad
+ deploy fails the build, and online evals against live conversations.
+ That's the next quarter."
+
+"Happy to take questions, or hand someone the laptop and let you break it."
+
+
+================================================================================
+ANTICIPATED QUESTIONS — PREPARED ANSWERS
+================================================================================
+
+Q: "Why not just use Confident AI's hosted Deepeval / Braintrust / LangSmith?"
+A: "Three reasons. One, client data — several of our clients won't send
+    chat logs to a third-party SaaS. EvalBot runs entirely local with
+    Ollama if needed. Two, cost — at our volume the hosted platforms get
+    expensive fast. Three, we needed the guideline-as-markdown abstraction
+    and none of them have it natively. We will plug into Braintrust for
+    teams that want it; the data model lines up."
+
+Q: "How does this overlap with Langfuse / Arize Phoenix / LangSmith?"
+A: "It doesn't, really — different stage of the lifecycle. Those are
+    production observability tools: trace every conversation, watch drift,
+    alert on anomalies in live traffic. EvalBot is pre-release evaluation:
+    does this bot meet the bar before it ships? In a mature setup you'd
+    run both — Langfuse or Arize in production for traces, EvalBot before
+    releases for grounded scoring against the client's docs. We're
+    planning a connector so flagged production traces flow back into
+    EvalBot as new test cases. They're complements."
+
+Q: "Why an LLM judge and not just BERTScore or human review?"
+A: "Different jobs. BERTScore gives a number with no reasoning — fine as
+    a floor, useless in a client report. Human review is the gold standard
+    but doesn't scale past a few hundred responses. The LLM judge sits
+    between them: it agrees with humans ~80% of the time (GPT-4 class on
+    public benchmarks), it scales to thousands of evaluations, and it
+    writes the justification sentence we paste into reports. We still use
+    BERTScore — it's part of our deterministic ML floor — and humans
+    review the cases where the ML score and judge score disagree."
+
+Q: "How do you know the judge itself isn't hallucinating?"
+A: "Two safeguards. First, the judge is grounded — it scores against a
+    reference answer that came from the client's documents, not from its
+    head. Second, we run the deterministic ML metrics alongside. When the
+    two disagree by more than a threshold we flag for human review. The
+    scatter plot you saw is exactly that triage tool."
+
+Q: "What about multi-turn conversations?"
+A: "Today we evaluate response-by-response and at the conversation level
+    with a summary judge pass. Full multi-turn evaluation — coherence
+    across ten turns, goal completion — is in the roadmap doc. Honestly,
+    no one in the OSS space has nailed this yet."
+
+Q: "How long to onboard a new client bot?"
+A: "If they give us their KB and a guidelines doc, a couple of hours to
+    a working harness. Compare that to writing custom DeepEval metrics
+    per client, which was easily a week."
+
+Q: "Which LLM is the judge?"
+A: "Configurable per project. Default is Claude Sonnet 4.6 for the right
+    cost-quality balance, Opus 4.7 when accuracy matters more than cost,
+    GPT-4o or Gemini for clients on those stacks, Ollama for fully local."
+
+Q: "How does this compare with Ragas specifically?"
+A: "Ragas gives us the metric vocabulary — faithfulness, context recall —
+    and we're aligned on those definitions. What Ragas doesn't give is
+    the workflow: guidelines as markdown, custom checks from the UI, PII
+    layer, the analytics. We could swap our judge engine for Ragas under
+    the hood; we chose to build it to control cost and grounding."
+
+
+================================================================================
+PRE-DEMO CHECKLIST (DO 10 MINUTES BEFORE)
+================================================================================
+
+[ ] Backend FastAPI server running, healthy
+[ ] Frontend Next.js dev server running
+[ ] Demo project pre-loaded:
+    [ ] 2–3 KB documents uploaded and indexed
+    [ ] Guidelines markdown uploaded
+    [ ] Seed questions imported
+[ ] AI judge API keys verified — run ONE full evaluation end-to-end
+[ ] Notes file open in a second window with copy-pasteable text:
+    [ ] One "good" question + good response
+    [ ] One "bad" question + response containing PII
+    [ ] One custom-check sentence (business hours rule)
+[ ] Browser: 125% zoom, light mode unless dark looks better on projector
+[ ] Close: Slack, Mail, calendar, all other tabs
+[ ] Notifications off (do-not-disturb)
+[ ] Terminal hidden
+[ ] Laptop on power, not battery
+
+
+================================================================================
+FALLBACKS WHEN SOMETHING BREAKS
+================================================================================
+
+  Judge API times out
+    → Switch provider in the project settings (Anthropic ↔ Gemini ↔ OpenAI)
+    → Re-run. Move on.
+
+  Evaluation is slow
+    → Keep talking about grounding and guidelines. Do NOT stare at
+      the spinner.
+
+  Whole evaluation fails
+    → Open a previously-run evaluation from history. Walk through it
+      with the same script. Most of the audience won't know the
+      difference.
+
+  Custom check doesn't trigger
+    → Show the JSON of the saved check to prove it's there, then move on.
+
+  Heatmap empty (batch run fails)
+    → Have a screenshot of a prior batch run ready. Show that.
+
+  Out of time
+    → Cut Step 6 (analytics) first.
+    → Then Step 5 (batch).
+    → Single eval + custom check is the MUST-SHOW core. Don't lose those.
+
+
+================================================================================
+TIMING TABLE
+================================================================================
+
+  Framing                           3:00
+  Step 1  Project setup             1:00
+  Step 2  Single evaluation         3:00
+  Step 3  PII / safety              1:00
+  Step 4  Custom check              1:00
+  Step 5  Batch / test suite        2:00
+  Step 6  Analytics                 1:00
+  Close                             2:00
+  --------------------------------------
+  Total                            14:00   (1 min buffer for one question)
+
+
+================================================================================
+SOURCES (for your own reference, do NOT cite in the demo)
+================================================================================
+
+  - Inference.net — LLM Evaluation Tools: Complete Comparison Guide 2026
+    https://inference.net/content/llm-evaluation-tools-comparison/
+  - Braintrust — DeepEval alternatives 2026
+    https://www.braintrust.dev/articles/deepeval-alternatives-2026
+  - genai.qa — DeepEval vs Ragas (2026)
+    https://genai.qa/blog/deepeval-vs-ragas/
+  - genai.qa — Promptfoo vs DeepEval vs Ragas
+    https://genai.qa/blog/promptfoo-vs-deepeval-vs-ragas/
+  - Confident AI / DeepEval — LLM-as-a-Judge guide
+    https://deepeval.com/guides/guides-llm-as-a-judge
+  - Confident AI — Chatbot Evaluation Quickstart
+    https://deepeval.com/docs/getting-started-chatbots
+  - Confident AI — RAG Evaluation Metrics
+    https://www.confident-ai.com/blog/rag-evaluation-metrics-answer-relevancy-faithfulness-and-more
+  - Patronus AI — RAG evaluation metrics
+    https://www.patronus.ai/llm-testing/rag-evaluation-metrics
+  - Atlan — RAGAS / TruLens / DeepEval comparison (2026)
+    https://atlan.com/know/llm-evaluation-frameworks-compared/
+  - ZenML — 8 Best DeepEval Alternatives
+    https://www.zenml.io/blog/deepeval-alternatives
+  - Cekura — Chatbot Testing in 2026 guide
+    https://www.cekura.ai/blogs/complete-chatbot-testing-guide-ai-agents
+  - AIMultiple — Chatbot Testing: A/B, Auto, Manual in 2026
+    https://research.aimultiple.com/chatbot-testing-frameworks/
+  - arXiv 2505.04847 — Benchmarking LLM Faithfulness in RAG
+    https://arxiv.org/html/2505.04847v1
+  - Confident AI — Why LLM-as-a-Judge is the best evaluation method
+    https://www.confident-ai.com/blog/why-llm-as-a-judge-is-the-best-llm-evaluation-method
+  - Evidently AI — LLM-as-a-Judge complete guide
+    https://www.evidentlyai.com/llm-guide/llm-as-a-judge
+  - SuperAnnotate — LLM judge vs human evaluation
+    https://www.superannotate.com/blog/llm-as-a-judge-vs-human-evaluation
+  - W&B — LLM evaluation beyond BLEU and ROUGE
+    https://wandb.ai/ai-team-articles/llm-evaluation/reports/LLM-evaluation-benchmarking-Beyond-BLEU-and-ROUGE--VmlldzoxNTIzMTY0NQ
+  - Toloka — LLM evaluation from classic metrics to modern methods
+    https://toloka.ai/blog/llm-evaluation-from-classic-metrics-to-modern-methods/
+  - Langfuse — Arize / Phoenix comparison
+    https://langfuse.com/faq/all/best-phoenix-arize-alternatives
+  - Spheron — Self-hosted Langfuse / Phoenix / Helicone 2026
+    https://www.spheron.network/blog/llm-observability-gpu-cloud-langfuse-arize-phoenix-helicone/
+  - DigitalApplied — LangSmith / Langfuse / Arize 2026
+    https://www.digitalapplied.com/blog/agent-observability-platforms-langsmith-langfuse-arize-2026
+  - ZenML — Langfuse vs Phoenix
+    https://www.zenml.io/blog/langfuse-vs-phoenix

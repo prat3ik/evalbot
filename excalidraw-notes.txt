@@ -1,0 +1,10 @@
+Technique: LLM As a Judge
+
+1. Manual chatbot QA doesn't scale
+   - Teams need an automated way to evaluate responses across many turns, prompts, and model versions without hand-grading every answer.
+
+2. One workflow across many chatbot endpoints
+   - Point the evaluator at any chatbot API and run the same judged tests, so different bots, environments, and model versions are compared on equal footing.
+
+3. Datasets + multi-endpoint runs enable regression testing
+   - Curated question sets run on demand, so every prompt change, model swap, or deploy can be benchmarked the same way, every time.

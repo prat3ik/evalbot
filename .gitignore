@@ -1,0 +1,40 @@
+# ---------- OS / editors ----------
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# ---------- Python (server) ----------
+server/.venv/
+server/.env
+server/.env.local
+server/__pycache__/
+server/**/__pycache__/
+server/**/*.pyc
+server/**/*.pyo
+server/.pytest_cache/
+server/.ruff_cache/
+server/.mypy_cache/
+
+# Runtime data: SQLite, Chroma, uploaded docs/guidelines, model cache
+server/data/
+
+# ---------- Node (client) ----------
+client/node_modules/
+client/.next/
+client/out/
+client/.env.local
+client/.env.*.local
+client/npm-debug.log*
+client/yarn-debug.log*
+client/yarn-error.log*
+client/.pnpm-debug.log*
+
+# ---------- Misc ----------
+*.log
+.coverage
+.pytest_cache/
+
+# Runtime SQLite db
+server/*.db

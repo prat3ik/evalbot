@@ -1,0 +1,263 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* surfaces */
+  --ev-bg: #faf9f5;
+  --ev-surface: #f5f4ee;
+  --ev-surface-raised: #ffffff;
+  --ev-surface-sunken: #efede4;
+  --ev-border: #e5e2d6;
+  --ev-border-strong: #cfcbbc;
+  /* text */
+  --ev-text: #1f1e1b;
+  --ev-text-muted: #6b6a63;
+  --ev-text-subtle: #9a9890;
+  /* accent */
+  --ev-accent: #d97757;
+  --ev-accent-hover: #c96846;
+  --ev-accent-pressed: #b85a3b;
+  --ev-accent-soft: #f4e1d6;
+  --ev-accent-fg: #ffffff;
+  /* semantic */
+  --ev-success: #5a8f5c;
+  --ev-success-soft: #e4eede;
+  --ev-warn: #c08a2e;
+  --ev-warn-soft: #f4e9cc;
+  --ev-danger: #b5523f;
+  --ev-danger-soft: #f1d9d1;
+  --ev-info: #3d6a8c;
+  --ev-info-soft: #dde6ee;
+  /* radius */
+  --ev-radius-sm: 6px;
+  --ev-radius-md: 10px;
+  --ev-radius-lg: 14px;
+  --ev-radius-xl: 20px;
+  /* spacing */
+  --ev-space-1: 4px;
+  --ev-space-2: 8px;
+  --ev-space-3: 12px;
+  --ev-space-4: 16px;
+  --ev-space-5: 24px;
+  --ev-space-6: 32px;
+  --ev-space-7: 48px;
+  --ev-space-8: 64px;
+  /* motion */
+  --ev-ease: cubic-bezier(0.2, 0, 0, 1);
+  --ev-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ev-dur-fast: 120ms;
+  --ev-dur-base: 180ms;
+  --ev-dur-slow: 320ms;
+  /* focus */
+  --ev-focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.35);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--ev-bg);
+  color: var(--ev-text);
+  font-feature-settings: "ss01", "cv11", "tnum";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--ev-focus-ring);
+}
+
+@media print {
+  @page {
+    margin: 12mm 14mm 14mm 14mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt;
+    line-height: 1.45;
+  }
+  /* Hide everything by default; only nodes inside `.print-area` print. */
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  /* Lift the print target out of its container so it spans the full page
+     and isn't clipped by sticky parents or dialog scroll boxes. */
+  .print-area {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+    color: #000 !important;
+  }
+  .print-area * {
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  /* Drop the heavy raised-card chrome inside the print region. */
+  .print-area [class*="rounded"],
+  .print-area .bg-surface-raised,
+  .print-area .bg-surface,
+  .print-area .bg-surface-sunken,
+  .print-area .bg-surface-sunken\/40,
+  .print-area .bg-surface-sunken\/50 {
+    background: #fff !important;
+  }
+  /* Soften borders so the page reads like a document, not a UI screenshot. */
+  .print-area .border,
+  .print-area .border-border,
+  .print-area .border-b,
+  .print-area .border-t {
+    border-color: #d4d4d4 !important;
+  }
+
+  /* Headings & body type — favour the serif we already load. */
+  .print-area h1,
+  .print-area h2,
+  .print-area h3,
+  .print-area h4 {
+    color: #000 !important;
+    page-break-after: avoid;
+  }
+  .print-area h1 {
+    font-size: 22pt;
+    line-height: 1.2;
+    margin: 0 0 6pt 0;
+  }
+  .print-area h2 {
+    font-size: 16pt;
+    margin: 14pt 0 6pt 0;
+  }
+  .print-area h3,
+  .print-area h4 {
+    font-size: 12pt;
+    margin: 10pt 0 4pt 0;
+  }
+  .print-area section {
+    page-break-inside: avoid;
+    margin-bottom: 6pt;
+  }
+  .print-area section + section {
+    margin-top: 6pt;
+  }
+  /* Collapse the per-card padding/borders that look great on screen but
+     look like screenshots on paper. */
+  .print-area .rounded-2xl,
+  .print-area .rounded-xl,
+  .print-area .rounded-lg,
+  .print-area .rounded-md {
+    border-radius: 4px !important;
+  }
+  /* The Score tile becomes a thin lead line on print, not a giant card. */
+  .print-area [data-print="score"],
+  .print-area .ScoreTile,
+  .print-area [class*="ScoreTile"] {
+    padding: 4pt 6pt !important;
+  }
+  /* The big flex-col gap of 24px between sections is too airy for paper. */
+  .print-area .gap-6 {
+    gap: 10pt !important;
+  }
+  .print-area .gap-4 {
+    gap: 8pt !important;
+  }
+  .print-area .gap-3 {
+    gap: 6pt !important;
+  }
+  .print-area .py-4,
+  .print-area .py-5,
+  .print-area .p-4,
+  .print-area .p-5 {
+    padding-top: 4pt !important;
+    padding-bottom: 4pt !important;
+  }
+  /* Transcript bubbles look chat-y on screen; flatten for paper. */
+  .print-area ol,
+  .print-area ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Tighten the big score tile so it doesn't eat half the first page. */
+  .print-area .text-[40px],
+  .print-area [class*="text-[40px"] {
+    font-size: 28pt !important;
+    line-height: 1 !important;
+  }
+
+  /* Metric bars: keep the fill visible when printing. */
+  .print-area [role="progressbar"],
+  .print-area .bg-success,
+  .print-area .bg-danger,
+  .print-area .bg-warn,
+  .print-area .bg-accent {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Native <dialog> uses ::backdrop and modal positioning; neutralise both
+     so the printed page isn't darkened or windowed. */
+  dialog,
+  dialog[open] {
+    position: static !important;
+    display: block !important;
+    border: none !important;
+    box-shadow: none !important;
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  dialog::backdrop {
+    display: none !important;
+  }
+  /* Hide UI affordances that don't belong on paper. */
+  .print-hide,
+  .print-area .print-hide {
+    display: none !important;
+  }
+  /* No interactive sticky / fixed elements should occupy the page. */
+  .print-area .sticky,
+  .print-area .fixed {
+    position: static !important;
+  }
+  /* Links print without underlines and stay dark. */
+  .print-area a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+
+  /* Page-break behaviour inside long lists/tables. */
+  table {
+    page-break-inside: auto;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  tr,
+  li {
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+}

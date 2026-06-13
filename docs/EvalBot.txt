@@ -1,0 +1,24 @@
+Evalbot : 
+- A Alphabin company internal product for chatbot testing
+- Need to Create a deep eval alternative
+- MVP only
+- Should be able to Test Chatbot Response against answer given by other llms that have been provided with all the documents in a agentic rag flow. and it needs to check that the result provided by the response is correct or not. and provide a evaluation score.
+- Consider this similar to safe gaurds in front of the llm before the prompt hits the llm and a smaller model evaluates that the query and resposne from the llm match the company policy or not. 
+- We need to create a website that can evaluate this. 
+
+
+Alphabin uses EvalBot as the measurable layer in delivery. It is an AI Chatbot testing tool you can run offline or in restricted networks. It combines fast metrics with an AI explanation so product teams know what to fix and why.
+
+Provide a user prompt, the Chatbot answer, and a reference answer
+    The metric engine scores similarity, accuracy, completeness, relevance, and readability.
+    The AI judge writes a short rationale that highlights missing concepts or format mismatches.
+    Scores combine with default weights. 35 percent similarity, 25 percent accuracy, 25 percent completeness, 10 percent relevance, 5 percent readability.
+    You get a weighted final grade and a clear breakdown per intent.
+
+Why teams pick it
+
+    Balanced and explainable. Numbers plus a short narrative.
+    Fast and lightweight. No heavy infrastructure.
+    Robust to paraphrases and typos with lexical and semantic checks.
+
+This AI Chatbot testing tool is built for teams who need explainable metrics without heavy infra.
