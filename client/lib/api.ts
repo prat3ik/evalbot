@@ -1338,6 +1338,22 @@ export interface ChatbotEndpointTestResult {
   error: string | null;
 }
 
+/** Provider preset returned by GET /api/chatbot-presets. The "custom" preset is
+ * a blank/default starting point. Field shapes mirror ChatbotEndpoint inputs. */
+export interface ChatbotPreset {
+  id: string;
+  label: string;
+  description: string;
+  method: string;
+  url: string;
+  headers_json: string;
+  request_template: string;
+  response_path: string;
+  tokens_prompt_path: string | null;
+  tokens_completion_path: string | null;
+  tokens_total_path: string | null;
+}
+
 const chatbotEndpointsApi = {
   list: (projectId: string) =>
     apiFetch<ChatbotEndpoint[]>(
@@ -1362,6 +1378,7 @@ const chatbotEndpointsApi = {
       `/api/chatbot-endpoints/${id}/test`,
       { method: "POST", body: input },
     ),
+  presets: () => apiFetch<ChatbotPreset[]>("/api/chatbot-presets"),
 };
 
 (api as unknown as Record<string, unknown>).chatbotEndpoints =

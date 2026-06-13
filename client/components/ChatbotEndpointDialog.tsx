@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronRight, Check, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
@@ -57,6 +57,7 @@ import {
   type ChatbotEndpoint,
   type ChatbotEndpointInput,
   type ChatbotEndpointTestResult,
+  type ChatbotPreset,
 } from "@/lib/api";
 
 const DEFAULT_TEMPLATE = '{"question": "{{question}}"}';
@@ -111,6 +112,30 @@ export function ChatbotEndpointDialog({
   const [validationError, setValidationError] = React.useState<string | null>(
     null,
   );
+  const [presetId, setPresetId] = React.useState("");
+
+  // Provider presets for the dropdown. On failure we simply render no options
+  // (the dropdown stays empty) rather than crashing the dialog.
+  const { data: presets } = useQuery({
+    queryKey: ["chatbot-presets"],
+    queryFn: () => chatbotEndpointsApi.presets(),
+  });
+
+  function applyPreset(id: string) {
+    setPresetId(id);
+    const preset = presets?.find((p) => p.id === id);
+    if (!preset) return;
+    setUrl(preset.url);
+    setMethod(preset.method);
+    setHeadersJson(preset.headers_json);
+    setReqTemplate(preset.request_template);
+    setRespPath(preset.response_path);
+    setPromptPath(preset.tokens_prompt_path ?? "");
+    setCompletionPath(preset.tokens_completion_path ?? "");
+    setTotalPath(preset.tokens_total_path ?? "");
+  }
+
+  const selectedPreset = presets?.find((p) => p.id === presetId) ?? null;
 
   const tokenPathCount =
     (promptPath.trim() ? 1 : 0) +
@@ -206,6 +231,22 @@ export function ChatbotEndpointDialog({
         <div className="flex flex-col">
           {/* Section 1 — Connection: Name + Method + URL on one row */}
           <Section title="Connection" first>
+            <Field
+              label="Provider preset"
+              hint={selectedPreset?.description}
+            >
+              <Select
+                value={presetId}
+                onChange={(e) => applyPreset(e.target.value)}
+              >
+                <option value="">Choose a provider preset…</option>
+                {(presets ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_110px_minmax(0,2fr)]">
               <Field label="Name">
                 <Input

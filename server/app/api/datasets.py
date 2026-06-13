@@ -4,15 +4,14 @@ import asyncio
 import csv
 import io
 import json
-import re
 from datetime import datetime
 from typing import Any, Literal
 
-import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from ..chatbot_client import call_chatbot
 from ..db import engine as db_engine, get_session
 from ..models import (
     ChatbotEndpoint,
@@ -609,108 +608,19 @@ def _matches_tag_filter(row_tags: list[str], filter_tags: list[str]) -> bool:
     return any(t in row_tags for t in filter_tags)
 
 
-def _render_template(template: str, *, question: str) -> Any:
-    """Tiny Jinja-ish render: replaces `{{question}}` and `{{conversation}}`.
-
-    Tries to JSON-parse the result; falls back to the rendered string.
-    """
-    s = template.replace("{{question}}", question).replace("{{conversation}}", question)
-    # JSON-escape the question in case template injection breaks JSON
-    try:
-        return json.loads(s)
-    except Exception:
-        # Try escaping the substitution
-        safe = template.replace("{{question}}", json.dumps(question)[1:-1]).replace(
-            "{{conversation}}", json.dumps(question)[1:-1]
-        )
-        try:
-            return json.loads(safe)
-        except Exception:
-            return s
-
-
-def _extract_response(data: Any, path: str) -> str | None:
-    """Extract a string value at a `$.foo.bar` style JSON path."""
-    if not path:
-        path = "$.response"
-    parts = re.split(r"[.\[\]]", path.lstrip("$").lstrip("."))
-    cur: Any = data
-    for p in parts:
-        if not p:
-            continue
-        if isinstance(cur, dict) and p in cur:
-            cur = cur[p]
-        elif isinstance(cur, list):
-            try:
-                cur = cur[int(p)]
-            except Exception:
-                return None
-        else:
-            return None
-    if isinstance(cur, (dict, list)):
-        return json.dumps(cur)
-    return None if cur is None else str(cur)
-
-
-def _extract_int(data: Any, path: str | None) -> int:
-    """Best-effort JSON-path scalar extraction returning an int (or 0)."""
-    if not path:
-        return 0
-    parts = re.split(r"[.\[\]]", path.lstrip("$").lstrip("."))
-    cur: Any = data
-    for p in parts:
-        if not p:
-            continue
-        if isinstance(cur, dict) and p in cur:
-            cur = cur[p]
-        elif isinstance(cur, list):
-            try:
-                cur = cur[int(p)]
-            except Exception:
-                return 0
-        else:
-            return 0
-    try:
-        return int(cur or 0)
-    except (TypeError, ValueError):
-        return 0
-
-
 async def _fetch_from_endpoint(
-    ep: ChatbotEndpoint, question: str
+    ep: ChatbotEndpoint,
+    question: str,
+    turns: list[dict[str, str]] | None = None,
 ) -> tuple[str | None, tuple[int, int, int]]:
-    """Call a configured ChatbotEndpoint with rendered template + headers.
+    """Call a configured ChatbotEndpoint and return ``(text, (p, c, t))``.
 
-    Returns ``(response_text, (prompt_tokens, completion_tokens, total_tokens))``.
-    Token counts default to 0 when the configured token paths are unset / miss.
+    Delegates to the shared ``call_chatbot`` so the connector behaves identically
+    here and in the "Test connection" route. ``turns`` replays a multi-turn
+    transcript (rendered via ``{{messages}}``); ``None`` sends a single-turn
+    message built from ``question``.
     """
-    body = _render_template(ep.request_template, question=question)
-    try:
-        headers = json.loads(ep.headers_json or "{}")
-        if not isinstance(headers, dict):
-            headers = {}
-    except Exception:
-        headers = {}
-    async with httpx.AsyncClient(timeout=float(ep.timeout_seconds or 30.0)) as client:
-        resp = await client.request(
-            (ep.method or "POST").upper(),
-            ep.url,
-            json=body if isinstance(body, (dict, list)) else None,
-            content=None if isinstance(body, (dict, list)) else str(body),
-            headers={"Content-Type": "application/json", **headers},
-        )
-        resp.raise_for_status()
-        try:
-            data = resp.json()
-        except Exception:
-            return resp.text, (0, 0, 0)
-    text = _extract_response(data, ep.response_path or "$.response")
-    p = _extract_int(data, ep.tokens_prompt_path) if ep.tokens_prompt_path else 0
-    c = _extract_int(data, ep.tokens_completion_path) if ep.tokens_completion_path else 0
-    t = _extract_int(data, ep.tokens_total_path) if ep.tokens_total_path else 0
-    if t == 0:
-        t = p + c
-    return text, (p, c, t)
+    return await call_chatbot(ep, question=question, turns=turns)
 
 
 async def _run_worker(run_id: str) -> None:
@@ -757,6 +667,7 @@ async def _run_worker(run_id: str) -> None:
                     r.expected_response,
                     r.chatbot_response,
                     r.chatbot_source,
+                    r.turns_json,
                 )
                 for r in target_rows
             ]
@@ -769,6 +680,7 @@ async def _run_worker(run_id: str) -> None:
             expected: str | None,
             chat_resp: str | None,
             chatbot_source: str | None,
+            turns_json: str = "[]",
         ):
             async with sem:
                 # Check for cancellation
@@ -792,6 +704,13 @@ async def _run_worker(run_id: str) -> None:
                     elif src.startswith("endpoint:"):
                         row_endpoint_id = src.split(":", 1)[1].strip() or None
 
+                row_turns = _parse_turns(turns_json)
+                turns_payload = (
+                    [{"role": t.role, "content": t.content} for t in row_turns]
+                    if row_turns
+                    else None
+                )
+
                 effective_endpoint_id = (
                     None if force_manual else (row_endpoint_id or chatbot_endpoint_id)
                 )
@@ -804,7 +723,7 @@ async def _run_worker(run_id: str) -> None:
                             ep = s.get(ChatbotEndpoint, effective_endpoint_id)
                             if ep is not None:
                                 response_text, cb_tokens = await _fetch_from_endpoint(
-                                    ep, q
+                                    ep, q, turns=turns_payload
                                 )
                     if not response_text:
                         err = (

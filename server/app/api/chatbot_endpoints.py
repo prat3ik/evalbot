@@ -9,7 +9,6 @@ running a full dataset against it.
 from __future__ import annotations
 
 import json
-import re
 import time
 from datetime import datetime
 from typing import Any
@@ -19,10 +18,26 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from ..chatbot_client import (
+    PRESETS,
+    coerce_int,
+    jsonpath_get,
+    render_request_template,
+)
 from ..db import get_session
 from ..models import ChatbotEndpoint, Project
 
 router = APIRouter()
+
+
+@router.get("/chatbot-presets")
+def list_presets() -> list[dict[str, Any]]:
+    """Provider quick-start presets (OpenAI / Anthropic / Gemini / Custom).
+
+    The endpoint dialog uses these to one-click-fill a new endpoint's URL,
+    headers, request template, and response/token JSONPaths.
+    """
+    return PRESETS
 
 
 # ---------------------------------------------------------------------------
@@ -119,56 +134,6 @@ def _to_out(e: ChatbotEndpoint) -> ChatbotEndpointOut:
         test_question=e.test_question,
         created_at=e.created_at,
     )
-
-
-def _jsonpath_get(payload: Any, path: str | None) -> Any:
-    """Minimal `$.a.b.c` dot-path extractor.
-
-    Supports numeric indices via `$.a.0.b` (no bracket syntax beyond what falls
-    out of the split). Returns None if any step misses. Deferred: full JSONPath
-    (filters, wildcards, recursive descent).
-    """
-    if not path:
-        return None
-    parts = re.split(r"[.\[\]]", path.lstrip("$").lstrip("."))
-    cur: Any = payload
-    for p in parts:
-        if not p:
-            continue
-        if isinstance(cur, dict) and p in cur:
-            cur = cur[p]
-        elif isinstance(cur, list):
-            try:
-                cur = cur[int(p)]
-            except (ValueError, IndexError):
-                return None
-        else:
-            return None
-    return cur
-
-
-def _render_template(template: str, *, question: str) -> Any:
-    """Render `{{question}}` / `{{conversation}}` and try to JSON-parse."""
-    s = template.replace("{{question}}", question).replace("{{conversation}}", question)
-    try:
-        return json.loads(s)
-    except Exception:
-        safe = template.replace("{{question}}", json.dumps(question)[1:-1]).replace(
-            "{{conversation}}", json.dumps(question)[1:-1]
-        )
-        try:
-            return json.loads(safe)
-        except Exception:
-            return s
-
-
-def _coerce_int(v: Any) -> int | None:
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except (TypeError, ValueError):
-        return None
 
 
 def _ensure_single_default(session: Session, project_id: str, keep_id: str) -> None:
@@ -367,7 +332,7 @@ async def test_endpoint(
     if ep is None:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
-    body = _render_template(ep.request_template, question=payload.question)
+    body = render_request_template(ep.request_template, question=payload.question)
     try:
         headers = json.loads(ep.headers_json or "{}")
         if not isinstance(headers, dict):
@@ -420,7 +385,7 @@ async def test_endpoint(
 
     response_text = ""
     if raw is not None and err is None:
-        v = _jsonpath_get(raw, ep.response_path) if isinstance(raw, (dict, list)) else None
+        v = jsonpath_get(raw, ep.response_path) if isinstance(raw, (dict, list)) else None
         if v is None and isinstance(raw, str):
             response_text = raw
         elif isinstance(v, (dict, list)):
@@ -433,17 +398,17 @@ async def test_endpoint(
                 err = f"response_path '{ep.response_path}' did not match"
 
     prompt_tokens = (
-        _coerce_int(_jsonpath_get(raw, ep.tokens_prompt_path))
+        coerce_int(jsonpath_get(raw, ep.tokens_prompt_path))
         if ep.tokens_prompt_path
         else None
     )
     completion_tokens = (
-        _coerce_int(_jsonpath_get(raw, ep.tokens_completion_path))
+        coerce_int(jsonpath_get(raw, ep.tokens_completion_path))
         if ep.tokens_completion_path
         else None
     )
     total_tokens = (
-        _coerce_int(_jsonpath_get(raw, ep.tokens_total_path))
+        coerce_int(jsonpath_get(raw, ep.tokens_total_path))
         if ep.tokens_total_path
         else None
     )
