@@ -47,6 +47,7 @@ Short and to the point — read in a couple of minutes:
 - **[How it works](docs/how-it-works.md)** — the scoring pipeline + user workflow, with flowcharts.
 - **[Usage guide](docs/usage.md)** — evaluate a bot, step by step.
 - **[Glossary](docs/glossary.md)** — every term in plain English.
+- **[How EvalBot compares](docs/comparison.md)** — vs promptfoo, deepeval, garak & friends.
 
 ---
 
@@ -241,7 +242,7 @@ Have an idea? [Open an issue](https://github.com/prat3ik/evalbot/issues).
 
 ## 🤝 Contributing
 
-Issues and PRs are welcome. For larger changes, open an issue first to discuss direction. Please keep changes scoped and include a short description of what you verified.
+Issues and PRs are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)** and the [`good first issue`](https://github.com/prat3ik/evalbot/labels/good%20first%20issue) list. For larger changes, open an issue first to discuss direction. Keep PRs scoped and note what you verified.
 
 ---
 
